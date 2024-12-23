@@ -21,8 +21,16 @@ service CatalogService @(path:'/browse') {
   @requires: 'authenticated-user'
   action cancelOrder (order: Orders:ID);
 
+  @requires: 'authenticated-user'
+  action addToWishlist (book: Books:ID, user: Users:ID);
 
- entity Wishlists as projection on my.Wishlists;
-    action addBookToWishlist(userID: UUID, bookID: UUID);
-    action deleteBookFromWishlist(userID: UUID, bookID: UUID);
+  @requires: 'authenticated-user'
+  action removeFromWishlist (wishlistItem: my.WishlistItems:ID);
+
+  @readonly @requires: 'authenticated-user'
+  entity Wishlist as select from my.WishlistItems {
+    *,
+    book.title as bookTitle,
+    user.name as userName
+  } excluding { createdBy, modifiedBy };
 }
