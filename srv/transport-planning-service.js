@@ -2,7 +2,7 @@ const cds = require('@sap/cds');
 
 module.exports = class TransportPlanningService extends cds.ApplicationService {
     async init() {
-        const { T_TransportPlanning } = this.entities;
+        const { TransportPlanning } = this.entities;
         
         this.on('getPrimaryId', async (req) => {
             try {
