@@ -6,6 +6,60 @@ class CatalogService extends ApplicationService {
     const db = await cds.connect.to("db"); // Connect to the database service
     const { Books, Orders, Users, WishlistItems} = db.model.entities; // Access entities from the CDS model
 
+    this.before('UPDATE', 'Books', async (req) => {
+      const { data } = req;
+
+      console.log("Before updating book entity " + req.data); 
+      
+      // Get the existing book record
+      const book = await SELECT.one.from(req.target).where({ ID: req.data.ID });
+      if (!book) throw new Error(`Book with ID ${req.data.ID} not found`);
+
+      // Validate price
+      if (data.price !== undefined) {
+          if (data.price < 0) {
+              req.error(400, 'Book price cannot be negative');
+          }
+          // Optional: Check for reasonable price range
+          if (data.price > 10000) {
+              req.error(400, 'Book price exceeds maximum allowed value');
+          }
+      }
+
+      // Validate stock
+      if (data.stock !== undefined) {
+          if (data.stock < 0) {
+              req.error(400, 'Book stock cannot be negative');
+          }
+          // Optional: Check for reasonable stock range
+          if (data.stock > 10000) {
+              req.error(400, 'Stock value exceeds maximum allowed quantity');
+          }
+      }
+
+      // Validate title length
+      if (data.title) {
+          if (data.title.length > 111) {
+              req.error(400, 'Title exceeds maximum length of 111 characters');
+          }
+          if (data.title.trim().length === 0) {
+              req.error(400, 'Title cannot be empty');
+          }
+      }
+
+      // Validate description length
+      if (data.descr && data.descr.length > 1111) {
+          req.error(400, 'Description exceeds maximum length of 1111 characters');
+      }
+
+      // Check if referenced author exists
+      if (data.author_ID) {
+          const author = await SELECT.one.from('Authors').where({ ID: data.author_ID });
+          if (!author) {
+              req.error(400, `Referenced author with ID ${data.author_ID} does not exist`);
+          }
+      }
+  });
 
     this.on('submitOrder', async (req) => {
       const { book, quantity, user } = req.data;
@@ -19,7 +73,7 @@ class CatalogService extends ApplicationService {
         `, [quantity, book, quantity]);
 
         if (updateStock.changes === 0) {
-          return req.reject(409, `Requested quantity (${quantity}) exceeds available stock or book #${book} does not exist.`);
+          return req.error(409, `Requested quantity (${quantity}) exceeds available stock`);
         }
 
         // Retrieve book details for calculating total price
@@ -111,7 +165,7 @@ class CatalogService extends ApplicationService {
     /**
      * Remove a book from the user's wishlist.
      */
-    this.on('removeFromWishlist', async (req) => {
+    this.on('DELETE','RemoveFromWishlist', async (req) => {
       const { wishlistItem: wishlistItemId } = req.data;
 
       // Check if the wishlist item exists
